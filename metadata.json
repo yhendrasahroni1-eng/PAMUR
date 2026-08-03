@@ -1,0 +1,6 @@
+{
+  "name": "PAMUR",
+  "description": "Sistem Informasi & Management Pencak Silat PAMUR Indonesia - Portal Siswa, ID Card Digital, Jadwal Latihan, Artikel & Dashboard Admin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
