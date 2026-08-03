@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Newspaper, Plus, Trash2, Edit3, Eye, Sparkles, Save, X } from 'lucide-react';
+import { Newspaper, Plus, Trash2, Edit3, Eye, Sparkles, Save, X, Upload, Image as ImageIcon, Link as LinkIcon, Camera } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Article, KategoriArtikel } from '../../types';
 
@@ -18,6 +18,8 @@ export const AdminArtikelManager: React.FC = () => {
   const [gambarUrl, setGambarUrl] = useState('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=800');
   const [featured, setFeatured] = useState(false);
 
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
   const categories: KategoriArtikel[] = [
     'Sejarah & Filsafat',
     'Jurus & Teknik',
@@ -25,6 +27,23 @@ export const AdminArtikelManager: React.FC = () => {
     'Pengumuman',
     'Tips Kesehatan'
   ];
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Ukuran foto terlalu besar. Maksimal 10MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setGambarUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingArticle(null);
@@ -220,14 +239,80 @@ export const AdminArtikelManager: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">URL Gambar Sampul</label>
-                <input
-                  type="url"
-                  value={gambarUrl}
-                  onChange={(e) => setGambarUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
-                />
+              {/* Photo Upload for Article */}
+              <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <label className="block text-slate-800 font-bold text-xs flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-indigo-600" />
+                    <span>Gambar Sampul Artikel</span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <LinkIcon className="w-3 h-3" />
+                    <span>{showUrlInput ? 'Sembunyikan URL' : 'Atau Gunakan URL/Link'}</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  {/* Preview Container */}
+                  <div className="relative w-full sm:w-36 h-28 rounded-xl overflow-hidden border-2 border-indigo-200 bg-slate-200 shrink-0 group shadow-sm">
+                    {gambarUrl ? (
+                      <img src={gambarUrl} alt="Preview Sampul" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                        <ImageIcon className="w-6 h-6 mb-1" />
+                        <span className="text-[10px]">Belum ada foto</span>
+                      </div>
+                    )}
+
+                    <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center cursor-pointer text-white">
+                      <Camera className="w-5 h-5 mb-0.5" />
+                      <span className="text-[10px] font-bold">Ganti Foto</span>
+                      <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
+                    </label>
+                  </div>
+
+                  {/* Upload Controls & Presets */}
+                  <div className="flex-1 space-y-2 w-full">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition active:scale-95">
+                        <Upload className="w-4 h-4" />
+                        <span>Pilih / Upload Foto</span>
+                        <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
+                      </label>
+
+                      {gambarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setGambarUrl('')}
+                          className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition"
+                        >
+                          Hapus Foto
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-slate-500">
+                      Format disarankan: JPG/PNG/WebP, maksimal 10MB. Foto langsung diunggah dari galeri/kamera perangkat Anda.
+                    </p>
+
+                    {showUrlInput && (
+                      <div className="pt-1">
+                        <input
+                          type="url"
+                          value={gambarUrl}
+                          onChange={(e) => setGambarUrl(e.target.value)}
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div>
