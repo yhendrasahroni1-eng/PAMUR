@@ -44,12 +44,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
       {/* Top Announcement Bar (Hidden if hideHeaderBanner is true) */}
       {!appSettings.hideHeaderBanner && appSettings.runningAnnouncement && (
         <div className="bg-gradient-to-r from-red-950 via-red-900 to-slate-900 text-amber-200 text-xs py-1.5 px-4 border-b border-red-800/40 flex items-center overflow-hidden">
-          <div className="flex items-center space-x-2 shrink-0 bg-red-900/80 px-2 py-0.5 rounded text-[11px] font-bold text-amber-300 mr-2 border border-red-700/50">
-            <Volume2 className="w-3 h-3 text-amber-400 animate-pulse" />
-            <span>PENGUMUMAN</span>
+          <div className="flex items-center space-x-2 shrink-0 bg-red-900/90 px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold text-amber-300 mr-3 border border-red-700/60 shadow-sm z-10">
+            <Volume2 className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+            <span className="uppercase tracking-wider">PENGUMUMAN</span>
           </div>
-          <div className="whitespace-nowrap overflow-x-auto no-scrollbar font-medium tracking-wide">
-            {appSettings.runningAnnouncement}
+          <div className="overflow-hidden whitespace-nowrap flex-1">
+            <marquee 
+              behavior="scroll" 
+              direction="left" 
+              scrollamount="6" 
+              className="font-semibold tracking-wide text-amber-100 flex items-center py-0.5"
+            >
+              {appSettings.runningAnnouncement}
+            </marquee>
           </div>
         </div>
       )}

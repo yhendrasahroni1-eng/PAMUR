@@ -56,6 +56,7 @@ export const AdminSiswaManager: React.FC = () => {
   
   // Modal add student
   const [showAddModal, setShowAddModal] = useState(false);
+  const [newRole, setNewRole] = useState<'siswa' | 'admin'>('siswa');
   const [newNama, setNewNama] = useState('');
   const [newNik, setNewNik] = useState('');
   const [newPassword, setNewPassword] = useState('123456');
@@ -215,7 +216,7 @@ export const AdminSiswaManager: React.FC = () => {
   const handleCreateNewStudent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNama.trim() || !newEmail.trim()) {
-      alert('Isi Nama dan Email siswa!');
+      alert('Isi Nama dan Email pengguna!');
       return;
     }
 
@@ -234,10 +235,15 @@ export const AdminSiswaManager: React.FC = () => {
       fotoUrl: newFotoUrl
     });
 
+    if (newRole === 'admin') {
+      updateUser(created.id, { role: 'admin' });
+    }
+
     // Automatically verify when added by Admin
     verifyUser(created.id, true);
 
     setShowAddModal(false);
+    setNewRole('siswa');
     setNewNama('');
     setNewNik('');
     setNewEmail('');
@@ -1165,7 +1171,7 @@ export const AdminSiswaManager: React.FC = () => {
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-heading font-bold text-lg text-slate-900">
-                Tambah Siswa PAMUR Baru
+                Tambah Siswa / Admin PAMUR Baru
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -1177,6 +1183,24 @@ export const AdminSiswaManager: React.FC = () => {
 
             <form onSubmit={handleCreateNewStudent} className="space-y-3 text-xs overflow-y-auto pr-1 flex-1">
               
+              {/* Role Selection */}
+              <div className="p-3 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-1">
+                <label className="block text-indigo-950 font-extrabold text-xs">Peran Akses Pengguna Baru *</label>
+                <select
+                  value={newRole}
+                  onChange={(e: any) => setNewRole(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-indigo-500 text-xs shadow-sm"
+                >
+                  <option value="siswa">Siswa / Anggota (Akses Portal Siswa)</option>
+                  <option value="admin">Admin / Pengurus (Akses Portal Admin PAMUR)</option>
+                </select>
+                <p className="text-[10px] text-indigo-800">
+                  {newRole === 'admin' 
+                    ? '⚡ Akun ini akan memiliki hak akses penuh sebagai Admin Pengurus.' 
+                    : '👤 Akun ini akan terdaftar sebagai siswa/anggota.'}
+                </p>
+              </div>
+
               {/* Photo Upload */}
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200">
                 <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 border-indigo-400 shrink-0 bg-slate-200">
