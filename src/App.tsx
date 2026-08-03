@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { LoginRegisterModal } from './components/LoginRegisterModal';
+import { ArticleDetailModal } from './components/ArticleDetailModal';
+import { Article } from './types';
 
 // Views
 import { SiswaDashboard } from './components/siswa/SiswaDashboard';
@@ -14,12 +16,28 @@ import { ProfilSiswaSection } from './components/siswa/ProfilSiswaSection';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 
 const MainAppContent: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser, articles } = useApp();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
+  // Shared Article Modal state (from WhatsApp URL link)
+  const [sharedArticle, setSharedArticle] = useState<Article | null>(null);
+
   // Auth Modal state
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+
+  // Check URL query parameters for direct article link shared via WhatsApp
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const articleId = params.get('articleId');
+    if (articleId && articles.length > 0) {
+      const found = articles.find(a => a.id === articleId);
+      if (found) {
+        setSharedArticle(found);
+        setActiveTab('artikel');
+      }
+    }
+  }, [articles]);
 
   const handleOpenAuthModal = (mode: 'login' | 'register') => {
     setAuthModalMode(mode);
@@ -84,6 +102,12 @@ const MainAppContent: React.FC = () => {
         onSuccess={() => {
           setIsAuthModalOpen(false);
         }}
+      />
+
+      {/* Shared Article Deep-Link Modal */}
+      <ArticleDetailModal
+        article={sharedArticle}
+        onClose={() => setSharedArticle(null)}
       />
 
     </div>

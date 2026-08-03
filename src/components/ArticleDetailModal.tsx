@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { X, Calendar, User, Eye, Share2, MessageSquare, BookOpen, Tag } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Calendar, User, Eye, Share2, Copy, Check, ExternalLink } from 'lucide-react';
 import { Article } from '../types';
 import { useApp } from '../context/AppContext';
 
@@ -9,7 +9,8 @@ interface ArticleDetailModalProps {
 }
 
 export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClose }) => {
-  const { incrementArticleViews, generateWhatsAppUrl } = useApp();
+  const { incrementArticleViews } = useApp();
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (article) {
@@ -19,9 +20,24 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article,
 
   if (!article) return null;
 
+  const getArticleUrl = () => {
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    return `${origin}${pathname}?articleId=${article.id}`;
+  };
+
   const handleShareWa = () => {
-    const text = `*${article.judul}*\n\nRead article from PAMUR Indonesia:\n"${article.ringkasan}"\n\nKategori: ${article.kategori}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    const link = getArticleUrl();
+    const text = `*${article.judul}*\n\n"${article.ringkasan}"\n\n📌 *Kategori:* ${article.kategori}\n✍️ *Penulis:* ${article.penulis}\n\n📖 *Baca selengkapnya di Portal PAMUR Indonesia:*\n${link}`;
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(waUrl, '_blank');
+  };
+
+  const handleCopyLink = () => {
+    const link = getArticleUrl();
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -116,18 +132,39 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article,
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
-          <button
-            onClick={handleShareWa}
-            className="px-4 py-2 rounded-xl bg-emerald-950 border border-emerald-700/80 text-emerald-300 hover:bg-emerald-900 font-bold text-xs flex items-center space-x-2 transition"
-          >
-            <Share2 className="w-4 h-4 text-emerald-400" />
-            <span>Bagikan ke WhatsApp</span>
-          </button>
+        <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleShareWa}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center space-x-2 transition shadow-md shadow-emerald-950/40 active:scale-95"
+              title="Kirim pesan beserta link artikel langsung ke WhatsApp"
+            >
+              <Share2 className="w-4 h-4 text-white" />
+              <span>Bagikan ke WhatsApp</span>
+            </button>
+
+            <button
+              onClick={handleCopyLink}
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center space-x-1.5 transition active:scale-95"
+              title="Salin tautan/link artikel ini"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400">Tersalin!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 text-slate-400" />
+                  <span>Salin Link</span>
+                </>
+              )}
+            </button>
+          </div>
 
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition"
+            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
           >
             Tutup Artikel
           </button>
