@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { 
+  Shield,
   ShieldCheck, 
   RotateCw, 
   Printer, 
@@ -120,11 +121,17 @@ export const IdCardDigital: React.FC<IdCardDigitalProps> = ({ userOverride }) =>
                     {/* Card Header */}
                     <div className="flex items-center justify-between pb-3 border-b-2 border-amber-500/40 relative z-10">
                       <div className="flex items-center space-x-3">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 p-0.5 flex items-center justify-center shadow">
-                          <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-                            <span className="font-heading font-black text-[11px] text-amber-400">PAMUR</span>
+                        {appSettings.logoUrl ? (
+                          <img
+                            src={appSettings.logoUrl}
+                            alt="Logo PAMUR"
+                            className="h-11 w-auto max-w-[80px] object-contain drop-shadow"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <Shield className="w-8 h-8 text-amber-400 drop-shadow" />
                           </div>
-                        </div>
+                        )}
                         <div>
                           <h3 className="font-heading font-black text-xs uppercase tracking-wider text-amber-300">
                             PAMUR INDONESIA
@@ -294,11 +301,15 @@ export const IdCardDigital: React.FC<IdCardDigitalProps> = ({ userOverride }) =>
                 <span className="text-[10px] text-slate-400 font-mono">CR-80 Format</span>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 p-0.5 flex items-center justify-center shrink-0">
-                  <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-                    <span className="font-heading font-black text-[10px] text-amber-400">PAMUR</span>
-                  </div>
-                </div>
+                {appSettings.logoUrl ? (
+                  <img
+                    src={appSettings.logoUrl}
+                    alt="Logo PAMUR"
+                    className="h-9 w-auto max-w-[70px] object-contain drop-shadow"
+                  />
+                ) : (
+                  <Shield className="w-7 h-7 text-amber-400 shrink-0 drop-shadow" />
+                )}
                 <div>
                   <h4 className="font-heading font-black text-xs text-amber-300">PAMUR INDONESIA</h4>
                   <p className="text-[9px] text-slate-300">KARTU TANDA ANGGOTA RESMI</p>
@@ -409,9 +420,15 @@ export const IdCardDigital: React.FC<IdCardDigitalProps> = ({ userOverride }) =>
             <div className="w-[340px] mx-auto bg-slate-950 rounded-2xl border-2 border-amber-500 p-5 space-y-3 text-white shadow-md relative overflow-hidden" style={{ minHeight: '215px' }}>
               <div className="flex items-center justify-between pb-2 border-b border-amber-500/50">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center font-black text-amber-400 text-[10px]">
-                    PAMUR
-                  </div>
+                  {appSettings.logoUrl ? (
+                    <img
+                      src={appSettings.logoUrl}
+                      alt="Logo PAMUR"
+                      className="h-8 w-auto max-w-[65px] object-contain drop-shadow"
+                    />
+                  ) : (
+                    <Shield className="w-6 h-6 text-amber-400 shrink-0 drop-shadow" />
+                  )}
                   <div>
                     <div className="font-extrabold text-[10px] text-amber-300 tracking-wider">PAMUR INDONESIA</div>
                     <div className="text-[8px] text-slate-300">KTA SISWA RESMI</div>

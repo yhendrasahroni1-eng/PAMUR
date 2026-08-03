@@ -39,6 +39,8 @@ interface AppContextType {
   // Settings & App
   updateAppSettings: (newSettings: Partial<AppSettings>) => void;
   resetToDefaultData: () => void;
+  getDatabaseExportPayload: () => any;
+  replaceEntireDatabase: (dataPayload: any) => void;
   
   // Helpers
   generateWhatsAppUrl: (message?: string, customNumber?: string) => string;
@@ -87,8 +89,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const found = parsedUsers.find(u => u.id === savedSessionId);
       if (found) return found;
     }
-    // Default logged in user for instant preview: Siswa 1
-    return initialUsers[1];
+    // Default: not logged in (guest view on public home page)
+    return null;
   });
 
   // Save changes to LocalStorage
@@ -273,13 +275,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAppSettings(prev => ({ ...prev, ...newSettings }));
   };
 
+  const getDatabaseExportPayload = () => {
+    return {
+      users,
+      articles,
+      schedules,
+      appSettings,
+      attendance,
+      backupDate: new Date().toISOString(),
+      appVersion: '1.0'
+    };
+  };
+
+  const replaceEntireDatabase = (dataPayload: any) => {
+    if (dataPayload.users && Array.isArray(dataPayload.users)) setUsers(dataPayload.users);
+    if (dataPayload.articles && Array.isArray(dataPayload.articles)) setArticles(dataPayload.articles);
+    if (dataPayload.schedules && Array.isArray(dataPayload.schedules)) setSchedules(dataPayload.schedules);
+    if (dataPayload.appSettings && typeof dataPayload.appSettings === 'object') setAppSettings(dataPayload.appSettings);
+    if (dataPayload.attendance && Array.isArray(dataPayload.attendance)) setAttendance(dataPayload.attendance);
+  };
+
   const resetToDefaultData = () => {
     setUsers(initialUsers);
     setArticles(initialArticles);
     setSchedules(initialSchedules);
     setAppSettings(initialAppSettings);
     setAttendance([]);
-    setCurrentUser(initialUsers[1]); // Default to student
+    setCurrentUser(null);
     localStorage.clear();
   };
 
@@ -318,6 +340,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordAttendance,
       updateAppSettings,
       resetToDefaultData,
+      getDatabaseExportPayload,
+      replaceEntireDatabase,
       generateWhatsAppUrl
     }}>
       {children}

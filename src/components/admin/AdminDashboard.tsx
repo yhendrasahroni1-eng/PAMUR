@@ -11,17 +11,19 @@ import {
   AlertTriangle,
   PhoneCall,
   ArrowUpRight,
-  KeyRound
+  KeyRound,
+  HardDrive
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AdminSiswaManager } from './AdminSiswaManager';
 import { AdminArtikelManager } from './AdminArtikelManager';
 import { AdminJadwalManager } from './AdminJadwalManager';
 import { AdminSettingsManager } from './AdminSettingsManager';
+import { GoogleDriveSyncManager } from './GoogleDriveSyncManager';
 
 export const AdminDashboard: React.FC = () => {
   const { users, articles, schedules, appSettings, generateWhatsAppUrl } = useApp();
-  const [activeAdminTab, setActiveAdminTab] = useState<'overview' | 'siswa' | 'artikel' | 'jadwal' | 'settings'>('overview');
+  const [activeAdminTab, setActiveAdminTab] = useState<'overview' | 'siswa' | 'artikel' | 'jadwal' | 'settings' | 'drive'>('overview');
 
   const siswaList = users.filter(u => u.role === 'siswa');
   const pendingSiswa = siswaList.filter(u => !u.terverifikasi);
@@ -31,6 +33,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'siswa', label: `Kelola Siswa (${siswaList.length})`, icon: Users, badge: pendingSiswa.length > 0 ? pendingSiswa.length : null },
     { id: 'artikel', label: `Artikel (${articles.length})`, icon: Newspaper },
     { id: 'jadwal', label: `Jadwal (${schedules.length})`, icon: Calendar },
+    { id: 'drive', label: 'Google Drive Database', icon: HardDrive },
     { id: 'settings', label: 'Pengaturan & WA', icon: Settings },
   ];
 
@@ -237,6 +240,7 @@ export const AdminDashboard: React.FC = () => {
       {activeAdminTab === 'siswa' && <AdminSiswaManager />}
       {activeAdminTab === 'artikel' && <AdminArtikelManager />}
       {activeAdminTab === 'jadwal' && <AdminJadwalManager />}
+      {activeAdminTab === 'drive' && <GoogleDriveSyncManager />}
       {activeAdminTab === 'settings' && <AdminSettingsManager />}
 
     </div>

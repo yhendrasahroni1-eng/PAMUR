@@ -230,7 +230,7 @@ export const AdminSettingsManager: React.FC = () => {
                   <img
                     src={logoUrl}
                     alt="Preview Logo"
-                    className="w-10 h-10 object-contain rounded-lg bg-slate-800 p-1 border border-amber-400/50 shadow"
+                    className="h-10 w-auto max-w-[100px] object-contain drop-shadow"
                   />
                 ) : (
                   <div className="w-10 h-10 rounded-lg bg-amber-400 flex items-center justify-center text-slate-900">

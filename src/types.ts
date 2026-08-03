@@ -86,4 +86,8 @@ export interface AppSettings {
   runningAnnouncement: string;
   logoUrl?: string;
   hideHeaderBanner?: boolean;
+  driveAccessToken?: string;
+  driveLastSyncDate?: string;
+  driveAutoSyncEnabled?: boolean;
+  driveUserEmail?: string;
 }
