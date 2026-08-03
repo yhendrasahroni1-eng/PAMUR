@@ -58,7 +58,20 @@ const LOCAL_STORAGE_SESSION = 'pamur_app_session_v1';
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_USERS);
-    return saved ? JSON.parse(saved) : initialUsers;
+    if (!saved) return initialUsers;
+    try {
+      const parsed: User[] = JSON.parse(saved);
+      // Ensure the official admin account is always present and updated
+      const hasOfficialAdmin = parsed.some(u => u.email === 'yhendrasahroni1@gmail.com');
+      if (!hasOfficialAdmin) {
+        // Filter out old demo admin/users if needed
+        const nonAdminUsers = parsed.filter(u => u.role !== 'admin' && !u.id.startsWith('usr-siswa-'));
+        return [...initialUsers, ...nonAdminUsers];
+      }
+      return parsed;
+    } catch {
+      return initialUsers;
+    }
   });
 
   const [articles, setArticles] = useState<Article[]>(() => {

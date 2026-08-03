@@ -369,7 +369,7 @@ export const LoginRegisterModal: React.FC<LoginRegisterModalProps> = ({
                         type="text"
                         value={emailOrNis}
                         onChange={(e) => setEmailOrNis(e.target.value)}
-                        placeholder={loginRole === 'siswa' ? 'misal: faiz.pamur@gmail.com atau PMR-2024-088' : 'admin@pamur.org'}
+                        placeholder={loginRole === 'siswa' ? 'Email, NIS, atau NIK Anda' : 'yhendrasahroni1@gmail.com'}
                         className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
                       />
                     </div>
@@ -420,31 +420,9 @@ export const LoginRegisterModal: React.FC<LoginRegisterModalProps> = ({
                     Masuk Sekarang
                   </button>
 
-                  {/* Quick Demo Login Preset Buttons */}
-                  <div className="pt-3 border-t border-slate-100 space-y-2">
-                    <p className="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Quick Demo Login (Instan Tanpa Ketik):</span>
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleDemoLogin('faiz.pamur@gmail.com', 'siswa')}
-                        className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-left text-xs transition hover:bg-amber-100"
-                      >
-                        <div className="font-bold text-slate-900">Ahmad Faiz</div>
-                        <div className="text-[10px] text-slate-600">Siswa (Biru - Pamekasan)</div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDemoLogin('admin@pamur.org', 'admin')}
-                        className="p-2 rounded-xl bg-indigo-50 border border-indigo-200 text-left text-xs transition hover:bg-indigo-100"
-                      >
-                        <div className="font-bold text-indigo-950">Master Bambang</div>
-                        <div className="text-[10px] text-indigo-800">Administrator Utama</div>
-                      </button>
-                    </div>
+                  {/* Note Login info */}
+                  <div className="pt-2 text-[11px] text-slate-500 text-center">
+                    Gunakan email dan kata sandi terdaftar untuk masuk.
                   </div>
 
                 </form>
