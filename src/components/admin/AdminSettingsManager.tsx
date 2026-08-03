@@ -6,7 +6,8 @@ export const AdminSettingsManager: React.FC = () => {
   const { currentUser, appSettings, updateAppSettings, updateUser, resetToDefaultData } = useApp();
 
   const [noWaAdmin, setNoWaAdmin] = useState(appSettings.noWaAdmin);
-  const [emailAdmin, setEmailAdmin] = useState(appSettings.emailAdmin);
+  const [emailAdmin, setEmailAdmin] = useState(currentUser?.email || appSettings.emailAdmin);
+  const [namaAdmin, setNamaAdmin] = useState(currentUser?.nama || 'Administrator Pengurus');
   const [namaOrganisasi, setNamaOrganisasi] = useState(appSettings.namaOrganisasi);
   const [slogan, setSlogan] = useState(appSettings.slogan);
   const [alamatPusat, setAlamatPusat] = useState(appSettings.alamatPusat);
@@ -55,6 +56,15 @@ export const AdminSettingsManager: React.FC = () => {
       logoUrl,
       hideHeaderBanner
     });
+
+    if (currentUser) {
+      updateUser(currentUser.id, {
+        email: emailAdmin,
+        nama: namaAdmin,
+        noWa: noWaAdmin
+      });
+    }
+
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -280,6 +290,43 @@ export const AdminSettingsManager: React.FC = () => {
           />
         </div>
 
+        {/* Admin Account Credentials Section */}
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white space-y-3">
+          <div className="flex items-center space-x-2 text-amber-300 font-extrabold text-sm">
+            <Shield className="w-5 h-5 text-amber-400" />
+            <span>Akun Admin & Credentials Login</span>
+          </div>
+          <p className="text-[11px] text-slate-300 leading-relaxed">
+            Ubah nama pengurus dan email resmi yang digunakan untuk login masuk ke portal Admin PAMUR.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-slate-200 font-bold mb-1">Nama Lengkap Admin / Pengurus:</label>
+              <input
+                type="text"
+                required
+                value={namaAdmin}
+                onChange={(e) => setNamaAdmin(e.target.value)}
+                placeholder="Administrator PAMUR"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 font-bold focus:outline-none focus:border-amber-400 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-200 font-bold mb-1">Email Login Admin (Username Login):</label>
+              <input
+                type="email"
+                required
+                value={emailAdmin}
+                onChange={(e) => setEmailAdmin(e.target.value)}
+                placeholder="admin@pamur.org"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Organization Name & Slogan */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -294,25 +341,14 @@ export const AdminSettingsManager: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-slate-700 font-bold mb-1">Email Resmi Admin</label>
+            <label className="block text-slate-700 font-bold mb-1">Slogan / Motto PAMUR</label>
             <input
-              type="email"
-              required
-              value={emailAdmin}
-              onChange={(e) => setEmailAdmin(e.target.value)}
+              type="text"
+              value={slogan}
+              onChange={(e) => setSlogan(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
             />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-slate-700 font-bold mb-1">Slogan / Motto PAMUR</label>
-          <input
-            type="text"
-            value={slogan}
-            onChange={(e) => setSlogan(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
-          />
         </div>
 
         <div>

@@ -30,7 +30,7 @@ export const AdminDashboard: React.FC = () => {
 
   const adminTabs = [
     { id: 'overview', label: 'Ringkasan Portal', icon: ShieldCheck },
-    { id: 'siswa', label: `Kelola Siswa (${siswaList.length})`, icon: Users, badge: pendingSiswa.length > 0 ? pendingSiswa.length : null },
+    { id: 'siswa', label: `Kelola Siswa & Admin (${users.length})`, icon: Users, badge: pendingSiswa.length > 0 ? pendingSiswa.length : null },
     { id: 'artikel', label: `Artikel (${articles.length})`, icon: Newspaper },
     { id: 'jadwal', label: `Jadwal (${schedules.length})`, icon: Calendar },
     { id: 'drive', label: 'Google Drive Database', icon: HardDrive },

@@ -34,6 +34,7 @@ export const AdminSiswaManager: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRanting, setFilterRanting] = useState<string>('Semua');
   const [filterSabuk, setFilterSabuk] = useState<string>('Semua');
+  const [filterRole, setFilterRole] = useState<string>('Semua');
   const [filterVerification, setFilterVerification] = useState<string>('Semua');
 
   // Dynamic rantings list based on initial list + registered users
@@ -45,7 +46,7 @@ export const AdminSiswaManager: React.FC = () => {
       'Ranting Jakarta Selatan',
       'Ranting Sampang Cab. Kota',
       'Ranting Sumenep Kota',
-      ...users.filter(u => u.role === 'siswa').map(u => u.ranting).filter(Boolean)
+      ...users.map(u => u.ranting).filter(Boolean)
     ])
   ).sort();
 
@@ -85,6 +86,30 @@ export const AdminSiswaManager: React.FC = () => {
     'Hitam'
   ];
 
+  const getSabukBadgeClass = (sabuk: string) => {
+    switch (sabuk) {
+      case 'Putih':
+        return 'bg-slate-100 text-slate-900 border-slate-300 font-extrabold';
+      case 'Kuning':
+        return 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold';
+      case 'Hijau':
+        return 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold';
+      case 'Biru':
+        return 'bg-blue-100 text-blue-900 border-blue-300 font-extrabold';
+      case 'Merah':
+        return 'bg-red-100 text-red-900 border-red-300 font-extrabold';
+      case 'Hitam':
+        return 'bg-slate-900 text-amber-300 border-slate-800 font-black';
+      case 'Dasar':
+      default:
+        return 'bg-slate-200 text-slate-800 border-slate-300 font-bold';
+    }
+  };
+
+  const handleQuickChangeBelt = (userId: string, newBelt: TingkatSabuk) => {
+    updateUser(userId, { tingkatSabuk: newBelt });
+  };
+
   const rantingOptions = [
     'Ranting Pamekasan Pusat',
     'Ranting Surabaya Cab. Gubeng',
@@ -94,8 +119,9 @@ export const AdminSiswaManager: React.FC = () => {
     'Ranting Sumenep Kota'
   ];
 
-  const filteredUsers = users.filter(u => u.role === 'siswa').filter(u => {
+  const filteredUsers = users.filter(u => {
     const q = searchQuery.toLowerCase().trim();
+    const matchRole = filterRole === 'Semua' || u.role === filterRole;
     const matchQuery = 
       !q ||
       u.nama.toLowerCase().includes(q) ||
@@ -112,15 +138,16 @@ export const AdminSiswaManager: React.FC = () => {
       filterVerification === 'Aktif' ? u.terverifikasi :
       !u.terverifikasi;
 
-    return matchQuery && matchRanting && matchSabuk && matchVerif;
+    return matchRole && matchQuery && matchRanting && matchSabuk && matchVerif;
   });
 
-  const hasActiveFilters = searchQuery.trim() !== '' || filterRanting !== 'Semua' || filterSabuk !== 'Semua' || filterVerification !== 'Semua';
+  const hasActiveFilters = searchQuery.trim() !== '' || filterRanting !== 'Semua' || filterSabuk !== 'Semua' || filterRole !== 'Semua' || filterVerification !== 'Semua';
 
   const resetAllFilters = () => {
     setSearchQuery('');
     setFilterRanting('Semua');
     setFilterSabuk('Semua');
+    setFilterRole('Semua');
     setFilterVerification('Semua');
   };
 
@@ -456,7 +483,7 @@ export const AdminSiswaManager: React.FC = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search Bar */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -477,6 +504,19 @@ export const AdminSiswaManager: React.FC = () => {
             )}
           </div>
 
+          {/* Role Filter */}
+          <div>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-bold"
+            >
+              <option value="Semua">-- Semua Peran (Siswa & Admin) --</option>
+              <option value="siswa">Siswa / Anggota</option>
+              <option value="admin">Admin / Pengurus</option>
+            </select>
+          </div>
+
           {/* Ranting / Cabang Filter */}
           <div className="relative">
             <Building className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -485,7 +525,7 @@ export const AdminSiswaManager: React.FC = () => {
               onChange={(e) => setFilterRanting(e.target.value)}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-medium"
             >
-              <option value="Semua">-- Semua Ranting / Cabang --</option>
+              <option value="Semua">-- Semua Ranting --</option>
               {availableRantings.map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -499,7 +539,7 @@ export const AdminSiswaManager: React.FC = () => {
               onChange={(e) => setFilterSabuk(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-medium"
             >
-              <option value="Semua">-- Semua Tingkat Sabuk --</option>
+              <option value="Semua">-- Semua Sabuk --</option>
               {sabukList.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -525,7 +565,7 @@ export const AdminSiswaManager: React.FC = () => {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
               <tr>
-                <th className="p-4">Siswa / Anggota</th>
+                <th className="p-4">Anggota / Admin</th>
                 <th className="p-4">NIS & Ranting</th>
                 <th className="p-4">Tingkat Sabuk</th>
                 <th className="p-4">Status & Kontak</th>
@@ -536,7 +576,7 @@ export const AdminSiswaManager: React.FC = () => {
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-slate-400">
-                    Tidak ada data siswa ditemukan.
+                    Tidak ada data pengguna ditemukan.
                   </td>
                 </tr>
               ) : (
@@ -550,7 +590,14 @@ export const AdminSiswaManager: React.FC = () => {
                           className="w-10 h-10 rounded-full object-cover border border-indigo-200 shadow-sm"
                         />
                         <div>
-                          <div className="font-bold text-slate-900">{siswa.nama}</div>
+                          <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>{siswa.nama}</span>
+                            {siswa.role === 'admin' && (
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-amber-300 border border-indigo-800 font-black text-[9px] uppercase tracking-wider">
+                                ADMIN
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-slate-500">{siswa.email}</div>
                           <div className="text-[10px] text-slate-400">{siswa.tempatLahir}, {siswa.tanggalLahir} ({siswa.jenisKelamin})</div>
                         </div>
@@ -563,9 +610,18 @@ export const AdminSiswaManager: React.FC = () => {
                     </td>
 
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 font-bold text-[11px]">
-                        {siswa.tingkatSabuk}
-                      </span>
+                      <select
+                        value={siswa.tingkatSabuk}
+                        onChange={(e) => handleQuickChangeBelt(siswa.id, e.target.value as TingkatSabuk)}
+                        className={`px-2.5 py-1 rounded-xl text-xs border cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition ${getSabukBadgeClass(siswa.tingkatSabuk)}`}
+                        title="Klik untuk mengubah tingkat sabuk siswa secara cepat"
+                      >
+                        {sabukList.map((s) => (
+                          <option key={s} value={s} className="bg-white text-slate-900 font-bold">
+                            Sabuk {s}
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     <td className="p-4">
@@ -715,7 +771,19 @@ export const AdminSiswaManager: React.FC = () => {
               {/* Main Fields Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Nama Lengkap Siswa *</label>
+                  <label className="block text-slate-700 font-bold mb-1">Peran / Hak Akses *</label>
+                  <select
+                    value={editingStudent.role}
+                    onChange={(e: any) => setEditingStudent({ ...editingStudent, role: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="siswa">Siswa / Anggota</option>
+                    <option value="admin">Admin / Pengurus</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Nama Lengkap Pengguna *</label>
                   <input
                     type="text"
                     required
@@ -737,13 +805,34 @@ export const AdminSiswaManager: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Email *</label>
+                  <label className="block text-slate-700 font-bold mb-1">Email (untuk Login) *</label>
                   <input
                     type="email"
                     required
                     value={editingStudent.email}
                     onChange={(e) => setEditingStudent({ ...editingStudent, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Kata Sandi Login *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingStudent.password || '123456'}
+                    onChange={(e) => setEditingStudent({ ...editingStudent, password: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Nomor NIK KTP/KTA</label>
+                  <input
+                    type="text"
+                    value={editingStudent.nik || ''}
+                    onChange={(e) => setEditingStudent({ ...editingStudent, nik: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:outline-none focus:border-indigo-500"
                   />
                 </div>
 
