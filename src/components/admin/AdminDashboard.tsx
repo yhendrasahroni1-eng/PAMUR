@@ -136,15 +136,15 @@ export const AdminDashboard: React.FC = () => {
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                   </span>
                   <span className="text-[11px] font-extrabold text-emerald-400 tracking-wider uppercase">
-                    Database Cloud Firestore Real-Time Aktif
+                    Server Database & Cloud Firestore Aktif
                   </span>
                 </div>
                 <h3 className="font-heading font-black text-lg text-amber-300 flex items-center gap-2">
                   <Database className="w-5 h-5 text-amber-400" />
-                  <span>Sinkronisasi Otomatis Antar Perangkat (HP / Laptop)</span>
+                  <span>Penyimpanan Server Express Backend Internal</span>
                 </h3>
                 <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-                  Seluruh perubahan data (siswa baru, verifikasi, artikel, jadwal latihan, dan presensi) yang dilakukan oleh Admin tersimpan secara otomatis di Cloud Database dan langsung diperbarui di seluruh perangkat siswa secara real-time.
+                  Seluruh perubahan data (pendaftaran siswa, verifikasi, artikel, jadwal, dan presensi) tersimpan langsung di Express Server Database (<code className="text-amber-300">/api/db</code>) secara otomatis tanpa tergantung koneksi pihak ketiga.
                 </p>
               </div>
 
@@ -155,7 +155,7 @@ export const AdminDashboard: React.FC = () => {
                   className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg transition disabled:opacity-50 active:scale-95"
                 >
                   <RefreshCw className={`w-4 h-4 ${isSyncingCloud ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingCloud ? 'Menyinkronkan...' : 'Paksa Sync Cloud Firestore'}</span>
+                  <span>{isSyncingCloud ? 'Menyinkronkan...' : 'Simpan ke Server DB'}</span>
                 </button>
 
                 <button

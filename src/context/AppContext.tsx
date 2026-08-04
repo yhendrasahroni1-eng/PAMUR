@@ -184,8 +184,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // -------------------------------------------------------------
-  // REAL-TIME FIRESTORE SYNCHRONIZATION ACROSS ALL DEVICES
+  // REAL-TIME & SERVER DATABASE SYNCHRONIZATION
   // -------------------------------------------------------------
+  // Initial load from Express Server DB (/api/db)
+  useEffect(() => {
+    const loadServerDb = async () => {
+      try {
+        const res = await fetch('/api/db');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const d = json.data;
+            if (d.users && Array.isArray(d.users) && d.users.length > 0) setUsers(d.users);
+            if (d.articles && Array.isArray(d.articles) && d.articles.length > 0) setArticles(d.articles);
+            if (d.schedules && Array.isArray(d.schedules) && d.schedules.length > 0) setSchedules(d.schedules);
+            if (d.settings && typeof d.settings === 'object') setAppSettings(d.settings);
+            if (d.attendance && Array.isArray(d.attendance)) setAttendance(d.attendance);
+            setSyncStatus('online');
+            setSyncErrorMessage(null);
+          }
+        }
+      } catch (e) {
+        console.warn('Initial Server DB fetch skipped or using fallback:', e);
+      }
+    };
+    loadServerDb();
+  }, []);
+
+  // Sync to Express Server DB whenever core data changes
+  const syncWithServerDatabase = async (overrideData?: any) => {
+    try {
+      const payload = overrideData || {
+        users,
+        articles,
+        schedules,
+        settings: appSettings,
+        attendance
+      };
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncStatus('online');
+        setSyncErrorMessage(null);
+        return { success: true, message: 'Data berhasil disimpan dengan aman di Server Database Express.' };
+      } else {
+        throw new Error(data.error || 'Gagal menyimpan data ke Server DB');
+      }
+    } catch (err: any) {
+      console.warn('Server DB save error:', err.message);
+      return { success: false, message: `Simpan ke Server DB: ${err.message}` };
+    }
+  };
+
+  useEffect(() => {
+    // Auto sync state changes to Server DB in background
+    syncWithServerDatabase({
+      users,
+      articles,
+      schedules,
+      settings: appSettings,
+      attendance
+    });
+  }, [users, articles, schedules, appSettings, attendance]);
+
   useEffect(() => {
     // 1. Users real-time listener
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -550,6 +615,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const syncAllToCloudFirestore = async (): Promise<{ success: boolean; message: string }> => {
+    let serverOk = false;
+    try {
+      const res = await syncWithServerDatabase();
+      serverOk = res.success;
+    } catch (e: any) {
+      console.warn('Server sync warning:', e);
+    }
+
     try {
       const batch = writeBatch(db);
       users.forEach(u => batch.set(doc(db, 'users', u.id), u));
@@ -559,10 +632,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       attendance.forEach(att => batch.set(doc(db, 'attendance', att.id), att));
       
       await batch.commit();
-      return { success: true, message: 'Seluruh database berhasil disinkronkan ke Cloud Firestore secara real-time.' };
+      return { success: true, message: 'Data berhasil tersimpan di Server Database Express & Cloud Firestore!' };
     } catch (err: any) {
-      console.error('Error syncing all to Firestore:', err);
-      return { success: false, message: `Gagal sinkronisasi ke Cloud: ${err.message || String(err)}` };
+      if (serverOk) {
+        return { success: true, message: 'Data BERHASIL tersimpan dengan aman di Express Server Database.' };
+      }
+      return { success: false, message: `Gagal sinkronisasi: ${err.message || String(err)}` };
     }
   };
 
@@ -574,6 +649,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAttendance([]);
     setCurrentUser(null);
     localStorage.clear();
+
+    fetch('/api/db/reset', { method: 'POST' }).catch(err => console.error('Server reset error:', err));
 
     try {
       initialUsers.forEach(u => setDoc(doc(db, 'users', u.id), u));
