@@ -1,6 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Article, Schedule, AppSettings, AttendanceRecord } from '../types';
 import { initialUsers, initialArticles, initialSchedules, initialAppSettings } from '../data/mockData';
+import { uploadToGoogleDrive } from '../services/googleDriveService';
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  deleteDoc, 
+  getDocs,
+  writeBatch
+} from 'firebase/firestore';
+import { db, OperationType, handleFirestoreError } from '../firebase';
 
 interface AppContextType {
   currentUser: User | null;
@@ -106,7 +117,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   });
 
-  // Save changes to LocalStorage
+  // -------------------------------------------------------------
+  // REAL-TIME FIRESTORE SYNCHRONIZATION ACROSS ALL DEVICES
+  // -------------------------------------------------------------
+  useEffect(() => {
+    // 1. Users real-time listener
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      if (!snapshot.empty) {
+        const loadedUsers: User[] = snapshot.docs.map(d => d.data() as User);
+        setUsers(loadedUsers);
+      } else {
+        // Seed initial users to Firestore if empty
+        initialUsers.forEach(u => {
+          setDoc(doc(db, 'users', u.id), u).catch(err => handleFirestoreError(err, OperationType.WRITE, 'users'));
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
+
+    // 2. Articles real-time listener
+    const unsubArticles = onSnapshot(collection(db, 'articles'), (snapshot) => {
+      if (!snapshot.empty) {
+        const loadedArticles: Article[] = snapshot.docs.map(d => d.data() as Article);
+        setArticles(loadedArticles);
+      } else {
+        initialArticles.forEach(a => {
+          setDoc(doc(db, 'articles', a.id), a).catch(err => handleFirestoreError(err, OperationType.WRITE, 'articles'));
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'articles'));
+
+    // 3. Schedules real-time listener
+    const unsubSchedules = onSnapshot(collection(db, 'schedules'), (snapshot) => {
+      if (!snapshot.empty) {
+        const loadedSchedules: Schedule[] = snapshot.docs.map(d => d.data() as Schedule);
+        setSchedules(loadedSchedules);
+      } else {
+        initialSchedules.forEach(s => {
+          setDoc(doc(db, 'schedules', s.id), s).catch(err => handleFirestoreError(err, OperationType.WRITE, 'schedules'));
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'schedules'));
+
+    // 4. App Settings real-time listener
+    const unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
+      if (!snapshot.empty) {
+        const configDoc = snapshot.docs.find(d => d.id === 'config');
+        if (configDoc) {
+          setAppSettings(configDoc.data() as AppSettings);
+        }
+      } else {
+        setDoc(doc(db, 'settings', 'config'), initialAppSettings).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings'));
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'settings'));
+
+    // 5. Attendance real-time listener
+    const unsubAttendance = onSnapshot(collection(db, 'attendance'), (snapshot) => {
+      if (!snapshot.empty) {
+        const loadedAttendance: AttendanceRecord[] = snapshot.docs.map(d => d.data() as AttendanceRecord);
+        setAttendance(loadedAttendance);
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'attendance'));
+
+    return () => {
+      unsubUsers();
+      unsubArticles();
+      unsubSchedules();
+      unsubSettings();
+      unsubAttendance();
+    };
+  }, []);
+
+  // Sync to LocalStorage for offline fallback
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_USERS, JSON.stringify(users));
   }, [users]);
@@ -134,6 +215,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem(LOCAL_STORAGE_SESSION);
     }
   }, [currentUser]);
+
+  // Debounced Auto-Sync to Google Drive when enabled
+  useEffect(() => {
+    if (!appSettings.driveAutoSyncEnabled || !appSettings.driveAccessToken) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const payload = {
+          users,
+          articles,
+          schedules,
+          appSettings,
+          attendance,
+          backupDate: new Date().toISOString(),
+          appVersion: '1.0'
+        };
+        const res = await uploadToGoogleDrive(appSettings.driveAccessToken, payload);
+        if (res.success) {
+          const nowStr = new Date().toLocaleString('id-ID');
+          localStorage.setItem(LOCAL_STORAGE_SETTINGS, JSON.stringify({
+            ...appSettings,
+            driveLastSyncDate: nowStr
+          }));
+        }
+      } catch (err) {
+        console.error('Auto Drive sync failed silently:', err);
+      }
+    }, 4000);
+
+    return () => clearTimeout(timeoutId);
+  }, [users, articles, schedules, attendance, appSettings.driveAutoSyncEnabled, appSettings.driveAccessToken]);
 
   // Auth Functions
   const login = (emailOrNis: string, role: 'siswa' | 'admin', passwordInput?: string): { success: boolean; message?: string } => {
@@ -191,6 +303,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setUsers(prev => [newSiswa, ...prev]);
+    setDoc(doc(db, 'users', newId), newSiswa).catch(err => handleFirestoreError(err, OperationType.WRITE, 'users'));
     return newSiswa;
   };
 
@@ -201,6 +314,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (currentUser && currentUser.id === userId) {
           setCurrentUser(updated);
         }
+        setDoc(doc(db, 'users', userId), updated, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'users'));
         return updated;
       }
       return u;
@@ -209,6 +323,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteUser = (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
+    deleteDoc(doc(db, 'users', userId)).catch(err => handleFirestoreError(err, OperationType.DELETE, 'users'));
     if (currentUser && currentUser.id === userId) {
       setCurrentUser(null);
     }
@@ -220,6 +335,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const importUsersBatch = (newUsers: User[]) => {
     setUsers(prev => [...newUsers, ...prev]);
+    newUsers.forEach(u => {
+      setDoc(doc(db, 'users', u.id), u).catch(err => handleFirestoreError(err, OperationType.WRITE, 'users'));
+    });
   };
 
   // Article CRUD
@@ -231,18 +349,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       tanggal: new Date().toISOString().split('T')[0]
     };
     setArticles(prev => [newArticle, ...prev]);
+    setDoc(doc(db, 'articles', newArticle.id), newArticle).catch(err => handleFirestoreError(err, OperationType.WRITE, 'articles'));
   };
 
   const updateArticle = (id: string, articleData: Partial<Article>) => {
-    setArticles(prev => prev.map(a => a.id === id ? { ...a, ...articleData } : a));
+    setArticles(prev => prev.map(a => {
+      if (a.id === id) {
+        const updated = { ...a, ...articleData };
+        setDoc(doc(db, 'articles', id), updated, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'articles'));
+        return updated;
+      }
+      return a;
+    }));
   };
 
   const deleteArticle = (id: string) => {
     setArticles(prev => prev.filter(a => a.id !== id));
+    deleteDoc(doc(db, 'articles', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, 'articles'));
   };
 
   const incrementArticleViews = (id: string) => {
-    setArticles(prev => prev.map(a => a.id === id ? { ...a, dibaca: a.dibaca + 1 } : a));
+    setArticles(prev => prev.map(a => {
+      if (a.id === id) {
+        const updated = { ...a, dibaca: a.dibaca + 1 };
+        setDoc(doc(db, 'articles', id), updated, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'articles'));
+        return updated;
+      }
+      return a;
+    }));
   };
 
   // Schedule CRUD
@@ -252,14 +386,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `sch-${Date.now()}`
     };
     setSchedules(prev => [...prev, newSchedule]);
+    setDoc(doc(db, 'schedules', newSchedule.id), newSchedule).catch(err => handleFirestoreError(err, OperationType.WRITE, 'schedules'));
   };
 
   const updateSchedule = (id: string, scheduleData: Partial<Schedule>) => {
-    setSchedules(prev => prev.map(s => s.id === id ? { ...s, ...scheduleData } : s));
+    setSchedules(prev => prev.map(s => {
+      if (s.id === id) {
+        const updated = { ...s, ...scheduleData };
+        setDoc(doc(db, 'schedules', id), updated, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'schedules'));
+        return updated;
+      }
+      return s;
+    }));
   };
 
   const deleteSchedule = (id: string) => {
     setSchedules(prev => prev.filter(s => s.id !== id));
+    deleteDoc(doc(db, 'schedules', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, 'schedules'));
   };
 
   // Attendance
@@ -277,6 +420,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setAttendance(prev => [newRecord, ...prev]);
+    setDoc(doc(db, 'attendance', newRecord.id), newRecord).catch(err => handleFirestoreError(err, OperationType.WRITE, 'attendance'));
 
     if (status === 'Hadir') {
       updateUser(currentUser.id, { presensiCount: (currentUser.presensiCount || 0) + 1 });
@@ -285,7 +429,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Settings
   const updateAppSettings = (newSettings: Partial<AppSettings>) => {
-    setAppSettings(prev => ({ ...prev, ...newSettings }));
+    setAppSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      setDoc(doc(db, 'settings', 'config'), updated, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings'));
+      return updated;
+    });
   };
 
   const getDatabaseExportPayload = () => {
@@ -301,11 +449,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const replaceEntireDatabase = (dataPayload: any) => {
-    if (dataPayload.users && Array.isArray(dataPayload.users)) setUsers(dataPayload.users);
-    if (dataPayload.articles && Array.isArray(dataPayload.articles)) setArticles(dataPayload.articles);
-    if (dataPayload.schedules && Array.isArray(dataPayload.schedules)) setSchedules(dataPayload.schedules);
-    if (dataPayload.appSettings && typeof dataPayload.appSettings === 'object') setAppSettings(dataPayload.appSettings);
-    if (dataPayload.attendance && Array.isArray(dataPayload.attendance)) setAttendance(dataPayload.attendance);
+    if (dataPayload.users && Array.isArray(dataPayload.users)) {
+      setUsers(dataPayload.users);
+      dataPayload.users.forEach((u: User) => setDoc(doc(db, 'users', u.id), u));
+    }
+    if (dataPayload.articles && Array.isArray(dataPayload.articles)) {
+      setArticles(dataPayload.articles);
+      dataPayload.articles.forEach((a: Article) => setDoc(doc(db, 'articles', a.id), a));
+    }
+    if (dataPayload.schedules && Array.isArray(dataPayload.schedules)) {
+      setSchedules(dataPayload.schedules);
+      dataPayload.schedules.forEach((s: Schedule) => setDoc(doc(db, 'schedules', s.id), s));
+    }
+    if (dataPayload.appSettings && typeof dataPayload.appSettings === 'object') {
+      setAppSettings(dataPayload.appSettings);
+      setDoc(doc(db, 'settings', 'config'), dataPayload.appSettings);
+    }
+    if (dataPayload.attendance && Array.isArray(dataPayload.attendance)) {
+      setAttendance(dataPayload.attendance);
+      dataPayload.attendance.forEach((att: AttendanceRecord) => setDoc(doc(db, 'attendance', att.id), att));
+    }
   };
 
   const resetToDefaultData = () => {

@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered Pamur student or admin user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "nis": { "type": "string" },
+        "nik": { "type": "string" },
+        "email": { "type": "string" },
+        "noWa": { "type": "string" },
+        "ranting": { "type": "string" },
+        "tingkatSabuk": { "type": "string" },
+        "statusVerifikasi": { "type": "boolean" },
+        "role": { "type": "string" },
+        "fotoUrl": { "type": "string" }
+      }
+    },
+    "Article": {
+      "title": "Article",
+      "description": "PAMUR news or educational article",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "judul": { "type": "string" },
+        "ringkasan": { "type": "string" },
+        "konten": { "type": "string" },
+        "kategori": { "type": "string" },
+        "penulis": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "gambarUrl": { "type": "string" },
+        "dibaca": { "type": "number" },
+        "featured": { "type": "boolean" }
+      }
+    },
+    "Schedule": {
+      "title": "Schedule",
+      "description": "Practice schedule item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hari": { "type": "string" },
+        "jam": { "type": "string" },
+        "lokasi": { "type": "string" },
+        "pelatih": { "type": "string" },
+        "keterangan": { "type": "string" },
+        "kuota": { "type": "number" }
+      }
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "App settings and configuration",
+      "type": "object",
+      "properties": {
+        "namaOrganisasi": { "type": "string" },
+        "runningAnnouncement": { "type": "string" },
+        "noWaAdmin": { "type": "string" },
+        "hideHeaderBanner": { "type": "boolean" }
+      }
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Attendance log for training",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "scheduleId": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile collection"
+    },
+    "/articles/{articleId}": {
+      "schema": { "$ref": "#/entities/Article" },
+      "description": "Article collection"
+    },
+    "/schedules/{scheduleId}": {
+      "schema": { "$ref": "#/entities/Schedule" },
+      "description": "Schedules collection"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Settings collection"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Attendance log collection"
+    }
+  }
+}

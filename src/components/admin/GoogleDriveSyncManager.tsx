@@ -13,7 +13,12 @@ import {
   ShieldCheck, 
   Database,
   Lock,
-  Clock
+  Clock,
+  ExternalLink,
+  HelpCircle,
+  Sparkles,
+  Check,
+  UserCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { 
@@ -36,9 +41,66 @@ export const GoogleDriveSyncManager: React.FC = () => {
   const [autoSync, setAutoSync] = useState<boolean>(appSettings.driveAutoSyncEnabled || false);
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isTestingToken, setIsTestingToken] = useState<boolean>(false);
   const [isLoadingBackups, setIsLoadingBackups] = useState<boolean>(false);
   const [driveFiles, setDriveFiles] = useState<DriveFileItem[]>([]);
   const [syncStatusMsg, setSyncStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [verifiedUserInfo, setVerifiedUserInfo] = useState<{ name?: string; email?: string } | null>(null);
+
+  // Test Access Token via Google UserInfo API
+  const handleTestToken = async (tokenToTest?: string) => {
+    const token = (tokenToTest || accessToken).trim();
+    if (!token) {
+      setSyncStatusMsg({
+        type: 'error',
+        text: 'Masukkan Access Token Google Drive terlebih dahulu.',
+      });
+      return;
+    }
+
+    setIsTestingToken(true);
+    setSyncStatusMsg(null);
+
+    try {
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Token tidak valid atau telah kadaluwarsa (Status: ${res.status}). Silakan ambil token baru.`);
+      }
+
+      const info = await res.json();
+      setVerifiedUserInfo({ name: info.name, email: info.email });
+      if (info.email) {
+        setUserEmail(info.email);
+      }
+
+      // Automatically save valid token
+      updateAppSettings({
+        driveAccessToken: token,
+        driveUserEmail: info.email || userEmail,
+        driveAutoSyncEnabled: true
+      });
+      setAutoSync(true);
+
+      setSyncStatusMsg({
+        type: 'success',
+        text: `Koneksi Google Drive Berhasil! Terhubung ke akun: ${info.name || ''} (${info.email || 'Akun Google'}). Auto-Sync Diaktifkan.`,
+      });
+
+      loadDriveFiles(token);
+    } catch (err: any) {
+      setVerifiedUserInfo(null);
+      setSyncStatusMsg({
+        type: 'error',
+        text: err.message || 'Gagal memverifikasi Token Google Drive.',
+      });
+    } finally {
+      setIsTestingToken(false);
+    }
+  };
 
   // Sync token to appSettings when updated
   const handleSaveToken = () => {
@@ -59,7 +121,7 @@ export const GoogleDriveSyncManager: React.FC = () => {
     if (!accessToken.trim()) {
       setSyncStatusMsg({
         type: 'error',
-        text: 'Masukkan OAuth Access Token Google Drive terlebih dahulu.',
+        text: 'Masukkan Access Token Google Drive terlebih dahulu.',
       });
       return;
     }
@@ -90,11 +152,12 @@ export const GoogleDriveSyncManager: React.FC = () => {
   };
 
   // Load backups list from Google Drive
-  const loadDriveFiles = async () => {
-    if (!accessToken.trim()) return;
+  const loadDriveFiles = async (overrideToken?: string) => {
+    const token = (overrideToken || accessToken).trim();
+    if (!token) return;
 
     setIsLoadingBackups(true);
-    const res = await listGoogleDriveBackups(accessToken.trim());
+    const res = await listGoogleDriveBackups(token);
     setIsLoadingBackups(false);
 
     if (res.success && res.files) {
@@ -109,7 +172,7 @@ export const GoogleDriveSyncManager: React.FC = () => {
 
   // Download and restore from a selected Google Drive file
   const handleRestoreFromFile = async (fileId: string, fileName: string) => {
-    if (!window.confirm(`Apakah Anda yakin ingin memulihkan database dari file Google Drive "${fileName}"? Data lokal saat ini akan diperbarui.`)) {
+    if (!window.confirm(`Apakah Anda yakin ingin memulihkan database dari file Google Drive "${fileName}"? Seluruh data lokal saat ini akan diperbarui.`)) {
       return;
     }
 
@@ -174,9 +237,12 @@ export const GoogleDriveSyncManager: React.FC = () => {
 
   useEffect(() => {
     if (accessToken.trim()) {
-      loadDriveFiles();
+      handleTestToken(accessToken);
     }
-  }, [accessToken]);
+  }, []);
+
+  // Direct OAuth Playground URL preconfigured with Drive Scope
+  const oauthPlaygroundUrl = `https://developers.google.com/oauthplayground/#step1&scopes=${encodeURIComponent('https://www.googleapis.com/auth/drive.file')}&url=https://&content_type=application/json&http_method=GET&useDefaultOauthCreds=true&oauth_version=2.0`;
 
   return (
     <div className="space-y-6">
@@ -185,7 +251,7 @@ export const GoogleDriveSyncManager: React.FC = () => {
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 font-extrabold text-[10px] uppercase tracking-wider">
                 Integrasi Cloud Database
               </span>
@@ -196,18 +262,18 @@ export const GoogleDriveSyncManager: React.FC = () => {
             </div>
             <h2 className="font-heading font-black text-2xl text-amber-300 flex items-center gap-2">
               <HardDrive className="w-7 h-7 text-amber-400" />
-              <span>Penyimpanan Database Google Drive</span>
+              <span>Sinkronisasi Google Drive PAMUR</span>
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-              Simpan dan pulihkan seluruh data siswa, artikel, jadwal latihan, presensi, dan konfigurasi portal secara aman di akun Google Drive Admin.
+              Simpan dan sinkronkan seluruh aktivitas admin (data siswa, artikel, jadwal latihan, presensi) secara otomatis ke Google Drive agar aman dan tidak pernah hilang.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleBackupToDrive}
-              disabled={isSyncing}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg hover:brightness-110 transition disabled:opacity-50"
+              disabled={isSyncing || !accessToken.trim()}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg hover:brightness-110 transition disabled:opacity-50 active:scale-95"
             >
               <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
               <span>{isSyncing ? 'Menyimpan...' : 'Simpan Ke Google Drive'}</span>
@@ -234,6 +300,66 @@ export const GoogleDriveSyncManager: React.FC = () => {
         </div>
       )}
 
+      {/* Easy Step-by-Step Guide Modal / Toggle */}
+      <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center space-x-2 text-indigo-950 font-bold">
+          <HelpCircle className="w-5 h-5 text-indigo-600 shrink-0" />
+          <span>Kesulitan menghubungkan Google Drive? Ikuti Panduan Mudah 3 Langkah.</span>
+        </div>
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center gap-1 shrink-0 transition"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{showGuide ? 'Tutup Panduan' : 'Lihat Cara Mudah Connect Google Drive'}</span>
+        </button>
+      </div>
+
+      {showGuide && (
+        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 text-white text-xs space-y-4 shadow-xl animate-fade-in">
+          <h3 className="font-heading font-black text-amber-300 text-sm flex items-center gap-2 border-b border-slate-800 pb-2">
+            <span>🚀 Cara 1-Klik Menghubungkan Google Drive PAMUR</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2">
+              <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">1</span>
+              <h4 className="font-bold text-amber-200">Buka Google OAuth Tool</h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Klik tombol di bawah ini untuk membuka halaman otorisasi resmi Google OAuth Playground (Pre-configured untuk Google Drive).
+              </p>
+              <a
+                href={oauthPlaygroundUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-[11px] hover:bg-indigo-500 transition mt-1"
+              >
+                <span>Buka Google OAuth Tool</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2">
+              <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">2</span>
+              <h4 className="font-bold text-amber-200">Klik Authorize & Ambil Token</h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                1. Klik tombol biru <strong className="text-amber-300">"Authorize APIs"</strong> di sebelah kiri.<br />
+                2. Login dengan Akun Google Anda & Izinkan akses Drive.<br />
+                3. Klik <strong className="text-amber-300">"Exchange authorization code for tokens"</strong>.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2">
+              <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">3</span>
+              <h4 className="font-bold text-amber-200">Tempel Token & Verifikasi</h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Salin teks <strong className="text-emerald-300">Access Token (ya29...)</strong>, lalu tempel pada kolom formulir di bawah ini dan klik <strong className="text-emerald-300 font-bold">"Tes & Hubungkan Koneksi"</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -247,58 +373,78 @@ export const GoogleDriveSyncManager: React.FC = () => {
                   Konfigurasi Kredensial Google Drive
                 </h3>
               </div>
-              <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                OAuth 2.0 Client
-              </span>
+              
+              {verifiedUserInfo ? (
+                <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  Terhubung: {verifiedUserInfo.email}
+                </span>
+              ) : (
+                <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                  OAuth 2.0 Access Token
+                </span>
+              )}
             </div>
 
             <div className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-800 mb-1">
-                  Google Drive Access Token (OAuth Scope: drive.file):
+                  Google Drive Access Token (OAuth Token):
                 </label>
-                <div className="relative">
-                  <input
-                    type="password"
-                    value={accessToken}
-                    onChange={(e) => setAccessToken(e.target.value)}
-                    placeholder="Masukkan OAuth Access Token (ya29...)"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-mono"
-                  />
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <div className="relative flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="password"
+                      value={accessToken}
+                      onChange={(e) => setAccessToken(e.target.value)}
+                      placeholder="Masukkan Access Token (ya29...)"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-mono"
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTestToken()}
+                    disabled={isTestingToken || !accessToken.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shrink-0 flex items-center gap-1.5 shadow transition disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isTestingToken ? 'animate-spin' : ''}`} />
+                    <span>{isTestingToken ? 'Memeriksa...' : 'Tes & Hubungkan'}</span>
+                  </button>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  OAuth token didapatkan secara otomatis saat Admin menyetujui izin Google Drive pada sistem.
+                  Access Token memberikan izin aman langsung untuk menyimpan file database di Google Drive Anda tanpa perlu server luar.
                 </p>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-800 mb-1">
-                  Email Akun Google Drive (Opsional):
+                  Email Akun Google Drive:
                 </label>
                 <input
                   type="email"
                   value={userEmail}
                   onChange={(e) => setUserEmail(e.target.value)}
-                  placeholder="admin@gmail.com"
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+                  placeholder="Contoh: admin.pamur@gmail.com"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-semibold"
                 />
               </div>
 
-              <div className="pt-2">
-                <label className="flex items-center space-x-3 cursor-pointer select-none">
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+                <label className="flex items-start space-x-3 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={autoSync}
                     onChange={(e) => setAutoSync(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300 mt-0.5"
                   />
                   <div>
-                    <span className="font-bold text-slate-900 text-xs block">
-                      Otomatis Sinkronisasi Ke Google Drive
+                    <span className="font-extrabold text-amber-950 text-xs block">
+                      ⚡ Otomatis Sinkronkan Setiap Perubahan Admin ke Google Drive
                     </span>
-                    <span className="text-[11px] text-slate-500 block">
-                      Tersimpan secara berkala sehingga backup selalu terbarui secara otomatis di cloud.
+                    <span className="text-[11px] text-amber-900 block leading-relaxed mt-0.5">
+                      Apabila diaktifkan, seluruh aksi admin (tambah siswa, ubah artikel, jadwal latihan, dan absensi) akan tersimpan secara otomatis di Google Drive beberapa detik setelah Anda melakukan perubahan.
                     </span>
                   </div>
                 </label>
@@ -313,9 +459,9 @@ export const GoogleDriveSyncManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSaveToken}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow transition"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs flex items-center gap-1.5 shadow transition"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
                   <span>Simpan Pengaturan</span>
                 </button>
               </div>
@@ -333,9 +479,9 @@ export const GoogleDriveSyncManager: React.FC = () => {
               </div>
 
               <button
-                onClick={loadDriveFiles}
-                disabled={isLoadingBackups}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+                onClick={() => loadDriveFiles()}
+                disabled={isLoadingBackups || !accessToken.trim()}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoadingBackups ? 'animate-spin' : ''}`} />
                 <span>Segarkan</span>
@@ -369,7 +515,7 @@ export const GoogleDriveSyncManager: React.FC = () => {
 
                     <button
                       onClick={() => handleRestoreFromFile(file.id, file.name)}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition self-start sm:self-auto"
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition self-start sm:self-auto active:scale-95"
                     >
                       <CloudDownload className="w-4 h-4" />
                       <span>Pulihkan Database</span>
@@ -387,24 +533,24 @@ export const GoogleDriveSyncManager: React.FC = () => {
             <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
               <Download className="w-5 h-5 text-indigo-600" />
               <h3 className="font-heading font-extrabold text-sm text-slate-900">
-                Cadangan Lokal (Offline JSON)
+                Cadangan File JSON Lokal
               </h3>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Selain Google Drive, Anda dapat mengunduh atau mengunggah cadangan database dalam bentuk file JSON langsung di perangkat ini.
+              Jika Google Drive belum terhubung, Anda dapat membackup atau memindahkan seluruh data antar HP/Komputer dengan cara mengunduh/mengunggah file JSON ini.
             </p>
 
             <div className="space-y-3 pt-2">
               <button
                 onClick={handleExportLocalJson}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 shadow transition"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 shadow transition active:scale-95"
               >
                 <Download className="w-4 h-4" />
                 <span>Unduh File Backup JSON</span>
               </button>
 
-              <label className="w-full py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition">
+              <label className="w-full py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition active:scale-95">
                 <Upload className="w-4 h-4" />
                 <span>Unggah & Restore JSON Lokal</span>
                 <input
@@ -422,3 +568,4 @@ export const GoogleDriveSyncManager: React.FC = () => {
     </div>
   );
 };
+
