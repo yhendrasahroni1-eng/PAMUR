@@ -12,7 +12,12 @@ import {
   PhoneCall,
   ArrowUpRight,
   KeyRound,
-  HardDrive
+  HardDrive,
+  Database,
+  RefreshCw,
+  Cloud,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AdminSiswaManager } from './AdminSiswaManager';
@@ -22,8 +27,22 @@ import { AdminSettingsManager } from './AdminSettingsManager';
 import { GoogleDriveSyncManager } from './GoogleDriveSyncManager';
 
 export const AdminDashboard: React.FC = () => {
-  const { users, articles, schedules, appSettings, generateWhatsAppUrl } = useApp();
+  const { users, articles, schedules, appSettings, generateWhatsAppUrl, syncAllToCloudFirestore } = useApp();
   const [activeAdminTab, setActiveAdminTab] = useState<'overview' | 'siswa' | 'artikel' | 'jadwal' | 'settings' | 'drive'>('overview');
+  const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
+  const [cloudSyncMsg, setCloudSyncMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleForceCloudSync = async () => {
+    setIsSyncingCloud(true);
+    setCloudSyncMsg(null);
+    const res = await syncAllToCloudFirestore();
+    setIsSyncingCloud(false);
+    setCloudSyncMsg({
+      type: res.success ? 'success' : 'error',
+      text: res.message
+    });
+    setTimeout(() => setCloudSyncMsg(null), 5000);
+  };
 
   const siswaList = users.filter(u => u.role === 'siswa');
   const pendingSiswa = siswaList.filter(u => !u.terverifikasi);
@@ -107,6 +126,60 @@ export const AdminDashboard: React.FC = () => {
       {activeAdminTab === 'overview' && (
         <div className="space-y-6">
           
+          {/* Cloud Database Multi-Device Sync Status Banner */}
+          <div className="p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white space-y-4 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-[11px] font-extrabold text-emerald-400 tracking-wider uppercase">
+                    Database Cloud Firestore Real-Time Aktif
+                  </span>
+                </div>
+                <h3 className="font-heading font-black text-lg text-amber-300 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-amber-400" />
+                  <span>Sinkronisasi Otomatis Antar Perangkat (HP / Laptop)</span>
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                  Seluruh perubahan data (siswa baru, verifikasi, artikel, jadwal latihan, dan presensi) yang dilakukan oleh Admin tersimpan secara otomatis di Cloud Database dan langsung diperbarui di seluruh perangkat siswa secara real-time.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  onClick={handleForceCloudSync}
+                  disabled={isSyncingCloud}
+                  className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg transition disabled:opacity-50 active:scale-95"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingCloud ? 'Menyinkronkan...' : 'Paksa Sync Cloud Firestore'}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveAdminTab('drive')}
+                  className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition"
+                >
+                  <HardDrive className="w-4 h-4 text-amber-400" />
+                  <span>Atur Google Drive</span>
+                </button>
+              </div>
+            </div>
+
+            {cloudSyncMsg && (
+              <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                cloudSyncMsg.type === 'success' 
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300' 
+                  : 'bg-rose-500/20 border border-rose-500/40 text-rose-300'
+              }`}>
+                {cloudSyncMsg.type === 'success' ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                <span>{cloudSyncMsg.text}</span>
+              </div>
+            )}
+          </div>
+
           {/* Key Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             

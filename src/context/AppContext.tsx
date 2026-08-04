@@ -52,6 +52,7 @@ interface AppContextType {
   resetToDefaultData: () => void;
   getDatabaseExportPayload: () => any;
   replaceEntireDatabase: (dataPayload: any) => void;
+  syncAllToCloudFirestore: () => Promise<{ success: boolean; message: string }>;
   
   // Helpers
   generateWhatsAppUrl: (message?: string, customNumber?: string) => string;
@@ -471,6 +472,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const syncAllToCloudFirestore = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const batch = writeBatch(db);
+      users.forEach(u => batch.set(doc(db, 'users', u.id), u));
+      articles.forEach(a => batch.set(doc(db, 'articles', a.id), a));
+      schedules.forEach(s => batch.set(doc(db, 'schedules', s.id), s));
+      batch.set(doc(db, 'settings', 'config'), appSettings);
+      attendance.forEach(att => batch.set(doc(db, 'attendance', att.id), att));
+      
+      await batch.commit();
+      return { success: true, message: 'Seluruh database berhasil disinkronkan ke Cloud Firestore secara real-time.' };
+    } catch (err: any) {
+      console.error('Error syncing all to Firestore:', err);
+      return { success: false, message: `Gagal sinkronisasi ke Cloud: ${err.message || String(err)}` };
+    }
+  };
+
   const resetToDefaultData = () => {
     setUsers(initialUsers);
     setArticles(initialArticles);
@@ -479,6 +497,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAttendance([]);
     setCurrentUser(null);
     localStorage.clear();
+
+    try {
+      initialUsers.forEach(u => setDoc(doc(db, 'users', u.id), u));
+      initialArticles.forEach(a => setDoc(doc(db, 'articles', a.id), a));
+      initialSchedules.forEach(s => setDoc(doc(db, 'schedules', s.id), s));
+      setDoc(doc(db, 'settings', 'config'), initialAppSettings);
+    } catch (e) {
+      console.error('Error resetting Firestore data:', e);
+    }
   };
 
   // Helper for WhatsApp links
@@ -518,6 +545,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       resetToDefaultData,
       getDatabaseExportPayload,
       replaceEntireDatabase,
+      syncAllToCloudFirestore,
       generateWhatsAppUrl
     }}>
       {children}
