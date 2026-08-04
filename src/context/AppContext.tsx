@@ -594,24 +594,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const replaceEntireDatabase = (dataPayload: any) => {
     if (dataPayload.users && Array.isArray(dataPayload.users)) {
       setUsers(dataPayload.users);
-      dataPayload.users.forEach((u: User) => setDoc(doc(db, 'users', u.id), u));
+      dataPayload.users.forEach((u: User) => setDoc(doc(db, 'users', u.id), u).catch(e => console.warn(e)));
     }
     if (dataPayload.articles && Array.isArray(dataPayload.articles)) {
       setArticles(dataPayload.articles);
-      dataPayload.articles.forEach((a: Article) => setDoc(doc(db, 'articles', a.id), a));
+      dataPayload.articles.forEach((a: Article) => setDoc(doc(db, 'articles', a.id), a).catch(e => console.warn(e)));
     }
     if (dataPayload.schedules && Array.isArray(dataPayload.schedules)) {
       setSchedules(dataPayload.schedules);
-      dataPayload.schedules.forEach((s: Schedule) => setDoc(doc(db, 'schedules', s.id), s));
+      dataPayload.schedules.forEach((s: Schedule) => setDoc(doc(db, 'schedules', s.id), s).catch(e => console.warn(e)));
     }
     if (dataPayload.appSettings && typeof dataPayload.appSettings === 'object') {
       setAppSettings(dataPayload.appSettings);
-      setDoc(doc(db, 'settings', 'config'), dataPayload.appSettings);
+      setDoc(doc(db, 'settings', 'config'), dataPayload.appSettings).catch(e => console.warn(e));
     }
     if (dataPayload.attendance && Array.isArray(dataPayload.attendance)) {
       setAttendance(dataPayload.attendance);
-      dataPayload.attendance.forEach((att: AttendanceRecord) => setDoc(doc(db, 'attendance', att.id), att));
+      dataPayload.attendance.forEach((att: AttendanceRecord) => setDoc(doc(db, 'attendance', att.id), att).catch(e => console.warn(e)));
     }
+
+    // Save directly to Express Server Database
+    syncWithServerDatabase(dataPayload);
   };
 
   const syncAllToCloudFirestore = async (): Promise<{ success: boolean; message: string }> => {

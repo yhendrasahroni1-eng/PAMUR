@@ -1,9 +1,105 @@
 import React, { useState } from 'react';
-import { Settings, PhoneCall, Save, CheckCircle2, RotateCcw, Volume2, Shield, Lock, Eye, EyeOff, KeyRound, AlertCircle, Upload, Image as ImageIcon, X, Layout, Sparkles } from 'lucide-react';
+import { 
+  Settings, PhoneCall, Save, CheckCircle2, RotateCcw, Volume2, Shield, Lock, 
+  Eye, EyeOff, KeyRound, AlertCircle, Upload, Image as ImageIcon, X, Layout, 
+  Sparkles, Database, Download, RefreshCw, HardDrive, Cloud, FileCode, Check
+} from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const AdminSettingsManager: React.FC = () => {
-  const { currentUser, appSettings, updateAppSettings, updateUser, resetToDefaultData } = useApp();
+  const { 
+    currentUser, 
+    appSettings, 
+    updateAppSettings, 
+    updateUser, 
+    resetToDefaultData,
+    getDatabaseExportPayload,
+    replaceEntireDatabase,
+    syncAllToCloudFirestore,
+    users,
+    articles,
+    schedules,
+    attendance
+  } = useApp();
+
+  const [dbBackupMsg, setDbBackupMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+
+  // Handle Export JSON File
+  const handleDownloadBackupJson = () => {
+    try {
+      const payload = getDatabaseExportPayload();
+      const jsonStr = JSON.stringify(payload, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `backup_pamur_db_${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setDbBackupMsg({
+        type: 'success',
+        text: 'File backup JSON berhasil diunduh ke perangkat Anda!'
+      });
+      setTimeout(() => setDbBackupMsg(null), 4000);
+    } catch (e: any) {
+      setDbBackupMsg({
+        type: 'error',
+        text: `Gagal mengunduh file backup: ${e.message}`
+      });
+    }
+  };
+
+  // Handle Import JSON File
+  const handleRestoreBackupJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const rawContent = event.target?.result as string;
+        const parsedData = JSON.parse(rawContent);
+
+        if (!parsedData || typeof parsedData !== 'object') {
+          throw new Error('Format file JSON tidak valid.');
+        }
+
+        replaceEntireDatabase(parsedData);
+        
+        setDbBackupMsg({
+          type: 'success',
+          text: 'Database BERHASIL dipulihkan/direstore dari file JSON!'
+        });
+        setTimeout(() => setDbBackupMsg(null), 5000);
+      } catch (err: any) {
+        setDbBackupMsg({
+          type: 'error',
+          text: `Gagal membaca file JSON: ${err.message}`
+        });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Force Save to All Engine Databases
+  const handleForceSaveAll = async () => {
+    setIsSyncingAll(true);
+    setDbBackupMsg(null);
+    const res = await syncAllToCloudFirestore();
+    setIsSyncingAll(false);
+    setDbBackupMsg({
+      type: res.success ? 'success' : 'error',
+      text: res.message
+    });
+    setTimeout(() => setDbBackupMsg(null), 5000);
+  };
 
   const [noWaAdmin, setNoWaAdmin] = useState(appSettings.noWaAdmin);
   const [emailAdmin, setEmailAdmin] = useState(currentUser?.email || appSettings.emailAdmin);
@@ -477,6 +573,132 @@ export const AdminSettingsManager: React.FC = () => {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Multi-Storage Database Backup & Management Panel */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl text-xs text-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-amber-400/20 text-amber-400">
+              <Database className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-heading font-black text-lg text-amber-300">
+                Penyimpanan Database & Backup Mandiri
+              </h3>
+              <p className="text-xs text-slate-400">
+                Sistem database multi-layer (Server Express, LocalStorage, Cloud Firestore & File JSON Backup).
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleForceSaveAll}
+            disabled={isSyncingAll}
+            className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50 shrink-0"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
+            <span>{isSyncingAll ? 'Menyimpan...' : 'Simpan / Sync Ke Semua Database'}</span>
+          </button>
+        </div>
+
+        {dbBackupMsg && (
+          <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+            dbBackupMsg.type === 'success'
+              ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+              : 'bg-rose-500/20 border border-rose-500/40 text-rose-300'
+          }`}>
+            {dbBackupMsg.type === 'success' ? <Check className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            <span>{dbBackupMsg.text}</span>
+          </div>
+        )}
+
+        {/* Database Engine Status Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          
+          <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-1">
+            <div className="flex items-center justify-between text-slate-300 font-bold">
+              <span className="flex items-center gap-1.5 text-amber-300">
+                <HardDrive className="w-4 h-4" />
+                Server Express DB
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-extrabold text-[10px]">
+                AKTIF (/api/db)
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Tersimpan langsung di server backend disk file (<code className="text-amber-200">/data/db.json</code>).
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-1">
+            <div className="flex items-center justify-between text-slate-300 font-bold">
+              <span className="flex items-center gap-1.5 text-cyan-300">
+                <Database className="w-4 h-4" />
+                Browser LocalStorage
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-extrabold text-[10px]">
+                AKTIF (Offline)
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Menyimpan data cadangan langsung di memori perangkat HP/browser.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-1">
+            <div className="flex items-center justify-between text-slate-300 font-bold">
+              <span className="flex items-center gap-1.5 text-indigo-300">
+                <Cloud className="w-4 h-4" />
+                Cloud Firestore
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-extrabold text-[10px]">
+                REAL-TIME
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Menyinkronkan data otomatis antar HP & Laptop saat terhubung internet.
+            </p>
+          </div>
+
+        </div>
+
+        {/* Manual Export & Import JSON Backup Controls */}
+        <div className="p-4 rounded-2xl bg-slate-800/50 border border-slate-700/60 space-y-3">
+          <h4 className="font-bold text-amber-300 flex items-center gap-2">
+            <FileCode className="w-4 h-4" />
+            <span>Opsi Backup File JSON (Simpan Manual ke HP/Laptop)</span>
+          </h4>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Jika Anda ingin mengamankan seluruh isi database (Siswa: {users.length}, Artikel: {articles.length}, Jadwal: {schedules.length}, Presensi: {attendance.length}) ke dalam file offline di HP/Komputer Anda, gunakan tombol di bawah:
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            
+            {/* Download Backup Button */}
+            <button
+              onClick={handleDownloadBackupJson}
+              className="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600 text-amber-300 font-bold text-xs flex items-center gap-2 transition"
+            >
+              <Download className="w-4 h-4 text-amber-400" />
+              <span>Unduh File Backup JSON (.json)</span>
+            </button>
+
+            {/* Restore/Import Backup File */}
+            <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition">
+              <Upload className="w-4 h-4" />
+              <span>Upload / Restore File JSON Backup</span>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleRestoreBackupJson}
+                className="hidden"
+              />
+            </label>
+
+          </div>
+        </div>
+
       </div>
 
     </div>

@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Cloud,
   Sparkles,
-  Check
+  Check,
+  Activity
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AdminSiswaManager } from './AdminSiswaManager';
@@ -25,10 +26,11 @@ import { AdminArtikelManager } from './AdminArtikelManager';
 import { AdminJadwalManager } from './AdminJadwalManager';
 import { AdminSettingsManager } from './AdminSettingsManager';
 import { GoogleDriveSyncManager } from './GoogleDriveSyncManager';
+import { FirestoreDiagnosticTool } from './FirestoreDiagnosticTool';
 
 export const AdminDashboard: React.FC = () => {
   const { users, articles, schedules, appSettings, generateWhatsAppUrl, syncAllToCloudFirestore } = useApp();
-  const [activeAdminTab, setActiveAdminTab] = useState<'overview' | 'siswa' | 'artikel' | 'jadwal' | 'settings' | 'drive'>('overview');
+  const [activeAdminTab, setActiveAdminTab] = useState<'overview' | 'siswa' | 'artikel' | 'jadwal' | 'settings' | 'drive' | 'diag'>('overview');
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
   const [cloudSyncMsg, setCloudSyncMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -53,6 +55,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'artikel', label: `Artikel (${articles.length})`, icon: Newspaper },
     { id: 'jadwal', label: `Jadwal (${schedules.length})`, icon: Calendar },
     { id: 'drive', label: 'Google Drive Database', icon: HardDrive },
+    { id: 'diag', label: 'Diagnosis Database', icon: Activity },
     { id: 'settings', label: 'Pengaturan & WA', icon: Settings },
   ];
 
@@ -159,8 +162,16 @@ export const AdminDashboard: React.FC = () => {
                 </button>
 
                 <button
+                  onClick={() => setActiveAdminTab('diag')}
+                  className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition"
+                >
+                  <Activity className="w-4 h-4 text-amber-400" />
+                  <span>Uji Diagnostic Ping</span>
+                </button>
+
+                <button
                   onClick={() => setActiveAdminTab('drive')}
-                  className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition"
+                  className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition"
                 >
                   <HardDrive className="w-4 h-4 text-amber-400" />
                   <span>Atur Google Drive</span>
@@ -314,6 +325,7 @@ export const AdminDashboard: React.FC = () => {
       {activeAdminTab === 'artikel' && <AdminArtikelManager />}
       {activeAdminTab === 'jadwal' && <AdminJadwalManager />}
       {activeAdminTab === 'drive' && <GoogleDriveSyncManager />}
+      {activeAdminTab === 'diag' && <FirestoreDiagnosticTool />}
       {activeAdminTab === 'settings' && <AdminSettingsManager />}
 
     </div>
