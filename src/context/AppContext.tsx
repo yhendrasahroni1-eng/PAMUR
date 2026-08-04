@@ -47,6 +47,13 @@ interface AppContextType {
   // Attendance
   recordAttendance: (scheduleId: string, status: 'Hadir' | 'Izin' | 'Sakit', catatan?: string) => void;
   
+  // Sync & Cloud Connectivity Status
+  syncStatus: 'online' | 'offline' | 'error';
+  syncErrorMessage: string | null;
+  isSyncToastDismissed: boolean;
+  dismissSyncToast: () => void;
+  retrySyncConnection: () => Promise<void>;
+
   // Settings & App
   updateAppSettings: (newSettings: Partial<AppSettings>) => void;
   resetToDefaultData: () => void;
@@ -119,11 +126,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   // -------------------------------------------------------------
+  // CLOUD FIREBASE CONNECTIVITY & SYNC TRACKING
+  // -------------------------------------------------------------
+  const [syncStatus, setSyncStatus] = useState<'online' | 'offline' | 'error'>(() => 
+    typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'online'
+  );
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const [isSyncToastDismissed, setIsSyncToastDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setSyncStatus('online');
+      setSyncErrorMessage(null);
+      setIsSyncToastDismissed(false);
+    };
+    const handleOffline = () => {
+      setSyncStatus('offline');
+      setSyncErrorMessage('Koneksi internet Anda terputus. Data sementara menggunakan penyimpanan lokal.');
+      setIsSyncToastDismissed(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleListenerError = (err: any, path: string) => {
+    handleFirestoreError(err, OperationType.LIST, path);
+    if (!navigator.onLine) {
+      setSyncStatus('offline');
+      setSyncErrorMessage('Koneksi internet terputus. Menggunakan data cadangan lokal.');
+    } else {
+      setSyncStatus('error');
+      setSyncErrorMessage(`Gagal terhubung ke Cloud Firebase (${path}). ${err?.message || 'Gagal sinkronisasi data real-time.'}`);
+    }
+    setIsSyncToastDismissed(false);
+  };
+
+  const dismissSyncToast = () => {
+    setIsSyncToastDismissed(true);
+  };
+
+  const retrySyncConnection = async () => {
+    setIsSyncToastDismissed(false);
+    if (!navigator.onLine) {
+      setSyncStatus('offline');
+      setSyncErrorMessage('Perangkat Anda masih tidak terhubung ke internet. Periksa Wi-Fi atau data seluler.');
+      return;
+    }
+    setSyncStatus('online');
+    setSyncErrorMessage(null);
+    await syncAllToCloudFirestore();
+  };
+
+  // -------------------------------------------------------------
   // REAL-TIME FIRESTORE SYNCHRONIZATION ACROSS ALL DEVICES
   // -------------------------------------------------------------
   useEffect(() => {
     // 1. Users real-time listener
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      setSyncStatus('online');
+      setSyncErrorMessage(null);
       if (!snapshot.empty) {
         const loadedUsers: User[] = snapshot.docs.map(d => d.data() as User);
         setUsers(loadedUsers);
@@ -133,7 +200,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setDoc(doc(db, 'users', u.id), u).catch(err => handleFirestoreError(err, OperationType.WRITE, 'users'));
         });
       }
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
+    }, (err) => handleListenerError(err, 'users'));
 
     // 2. Articles real-time listener
     const unsubArticles = onSnapshot(collection(db, 'articles'), (snapshot) => {
@@ -145,7 +212,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setDoc(doc(db, 'articles', a.id), a).catch(err => handleFirestoreError(err, OperationType.WRITE, 'articles'));
         });
       }
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'articles'));
+    }, (err) => handleListenerError(err, 'articles'));
 
     // 3. Schedules real-time listener
     const unsubSchedules = onSnapshot(collection(db, 'schedules'), (snapshot) => {
@@ -157,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setDoc(doc(db, 'schedules', s.id), s).catch(err => handleFirestoreError(err, OperationType.WRITE, 'schedules'));
         });
       }
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'schedules'));
+    }, (err) => handleListenerError(err, 'schedules'));
 
     // 4. App Settings real-time listener
     const unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
@@ -169,7 +236,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         setDoc(doc(db, 'settings', 'config'), initialAppSettings).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings'));
       }
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'settings'));
+    }, (err) => handleListenerError(err, 'settings'));
 
     // 5. Attendance real-time listener
     const unsubAttendance = onSnapshot(collection(db, 'attendance'), (snapshot) => {
@@ -177,7 +244,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const loadedAttendance: AttendanceRecord[] = snapshot.docs.map(d => d.data() as AttendanceRecord);
         setAttendance(loadedAttendance);
       }
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'attendance'));
+    }, (err) => handleListenerError(err, 'attendance'));
 
     return () => {
       unsubUsers();
@@ -187,6 +254,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubAttendance();
     };
   }, []);
+
+  // Sync currentUser with users list whenever user records update in Firestore
+  useEffect(() => {
+    if (currentUser) {
+      const freshSelf = users.find(u => u.id === currentUser.id);
+      if (freshSelf && JSON.stringify(freshSelf) !== JSON.stringify(currentUser)) {
+        setCurrentUser(freshSelf);
+      }
+    }
+  }, [users]);
 
   // Sync to LocalStorage for offline fallback
   useEffect(() => {
@@ -546,6 +623,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       getDatabaseExportPayload,
       replaceEntireDatabase,
       syncAllToCloudFirestore,
+      syncStatus,
+      syncErrorMessage,
+      isSyncToastDismissed,
+      dismissSyncToast,
+      retrySyncConnection,
       generateWhatsAppUrl
     }}>
       {children}

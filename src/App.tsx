@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { LoginRegisterModal } from './components/LoginRegisterModal';
 import { ArticleDetailModal } from './components/ArticleDetailModal';
+import { SyncToastNotification } from './components/SyncToastNotification';
 import { Article } from './types';
 
 // Views
@@ -109,6 +110,9 @@ const MainAppContent: React.FC = () => {
         article={sharedArticle}
         onClose={() => setSharedArticle(null)}
       />
+
+      {/* Real-time Cloud Firestore & Offline Sync Status Toast */}
+      <SyncToastNotification />
 
     </div>
   );
